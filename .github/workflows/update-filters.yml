@@ -1,10 +1,8 @@
 name: Build WebKit Filters
 
 on:
-  # 毎日 AM 3:00 (JST) に自動実行 (UTC 18:00)
   schedule:
     - cron: '0 18 * * *'
-  # 手動実行ボタンを有効化
   workflow_dispatch:
 
 jobs:
@@ -38,24 +36,32 @@ jobs:
           cd SafariConverterLib
           swift build -c release --product ConverterTool
 
-          echo "3. WebKit用JSONへ一括変換・最適化中..."
-          # ConverterToolのサブコマンド `convert` を実行
-          .build/release/ConverterTool convert \
-            --safari-version 16.4 \
-            --optimize true \
-            --input-path ../combined_filter.txt \
-            --output-path ../dist/rules_raw.json
+          echo "3. ConverterToolのヘルプ確認とWebKit用JSONへの変換..."
+          # ログ確認用に一度ヘルプを表示
+          .build/release/ConverterTool --help || true
+
+          # ConverterToolは標準入力(<)からルールを受け取り、標準出力(>)へ出力する仕様
+          .build/release/ConverterTool --safari-version 16.4 --optimize true < ../combined_filter.txt > ../dist/rules_raw.json
 
           cd ..
 
           echo "4. WKContentRuleList用のJSON配列を抽出..."
-          if jq -e '.safariRulesJSON' dist/rules_raw.json > /dev/null 2>&1; then
+          # 出力されたJSONの形式に合わせて配列部分だけを抽出
+          if jq -e 'type == "array"' dist/rules_raw.json > /dev/null 2>&1; then
+            jq -c '.' dist/rules_raw.json > dist/rules.json
+            rm dist/rules_raw.json
+          elif jq -e '.converted' dist/rules_raw.json > /dev/null 2>&1; then
+            jq -c '.converted | fromjson' dist/rules_raw.json > dist/rules.json
+            rm dist/rules_raw.json
+          elif jq -e '.safariRulesJSON' dist/rules_raw.json > /dev/null 2>&1; then
             jq -c '.safariRulesJSON | fromjson' dist/rules_raw.json > dist/rules.json
             rm dist/rules_raw.json
           elif jq -e '.json' dist/rules_raw.json > /dev/null 2>&1; then
             jq -c '.json | fromjson' dist/rules_raw.json > dist/rules.json
             rm dist/rules_raw.json
           else
+            echo "出力構造の確認:"
+            head -c 500 dist/rules_raw.json
             mv dist/rules_raw.json dist/rules.json
           fi
 
@@ -65,13 +71,11 @@ jobs:
           echo "変換完了！ 総ルール数: ${RULE_COUNT} / 150,000"
           echo "=========================================="
 
-          # ライセンスと更新チェック用のタイムスタンプを生成
           cp LICENSE dist/LICENSE.txt 2>/dev/null || true
           date -u +"%Y-%m-%dT%H:%M:%SZ" > dist/version.txt
 
           ls -lh dist/
 
-      # 動作確認用：生成されたdistフォルダをGitHubの画面からDLできるように保存
       - name: Upload Artifact for testing
         uses: actions/upload-artifact@v4
         with:
