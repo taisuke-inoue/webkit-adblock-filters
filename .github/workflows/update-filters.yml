@@ -36,34 +36,17 @@ jobs:
           cd SafariConverterLib
           swift build -c release --product ConverterTool
 
-          echo "3. ConverterToolのヘルプ確認とWebKit用JSONへの変換..."
-          # ログ確認用に一度ヘルプを表示
-          .build/release/ConverterTool --help || true
-
-          # ConverterToolは標準入力(<)からルールを受け取り、標準出力(>)へ出力する仕様
-          .build/release/ConverterTool --safari-version 16.4 --optimize true < ../combined_filter.txt > ../dist/rules_raw.json
+          echo "3. WebKit用JSONへ変換中..."
+          .build/release/ConverterTool convert \
+            --safari-version 16.4 \
+            --input-path ../combined_filter.txt \
+            --safari-rules-json-path ../dist/rules_raw.json
 
           cd ..
 
-          echo "4. WKContentRuleList用のJSON配列を抽出..."
-          # 出力されたJSONの形式に合わせて配列部分だけを抽出
-          if jq -e 'type == "array"' dist/rules_raw.json > /dev/null 2>&1; then
-            jq -c '.' dist/rules_raw.json > dist/rules.json
-            rm dist/rules_raw.json
-          elif jq -e '.converted' dist/rules_raw.json > /dev/null 2>&1; then
-            jq -c '.converted | fromjson' dist/rules_raw.json > dist/rules.json
-            rm dist/rules_raw.json
-          elif jq -e '.safariRulesJSON' dist/rules_raw.json > /dev/null 2>&1; then
-            jq -c '.safariRulesJSON | fromjson' dist/rules_raw.json > dist/rules.json
-            rm dist/rules_raw.json
-          elif jq -e '.json' dist/rules_raw.json > /dev/null 2>&1; then
-            jq -c '.json | fromjson' dist/rules_raw.json > dist/rules.json
-            rm dist/rules_raw.json
-          else
-            echo "出力構造の確認:"
-            head -c 500 dist/rules_raw.json
-            mv dist/rules_raw.json dist/rules.json
-          fi
+          echo "4. JSONを1行にMinify（軽量化）して集計..."
+          jq -c '.' dist/rules_raw.json > dist/rules.json
+          rm dist/rules_raw.json
 
           # 変換後のルール数をログに出力（WebKit上限15万ルールの確認用）
           RULE_COUNT=$(jq 'length' dist/rules.json)
