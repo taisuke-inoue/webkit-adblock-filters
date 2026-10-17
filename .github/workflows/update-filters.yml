@@ -1,0 +1,80 @@
+name: Build WebKit Filters
+
+on:
+  # 毎日 AM 3:00 (JST) に自動実行 (UTC 18:00)
+  schedule:
+    - cron: '0 18 * * *'
+  # 手動実行ボタンを有効化
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download 5 Filters and Convert to WebKit JSON
+        run: |
+          mkdir -p dist
+          rm -f combined_filter.txt
+
+          # 採用した5本のフィルタID (ベース, モバイル広告, 日本語, 追跡防止, アプリバナー)
+          FILTER_IDS=(2 11 7 3 20)
+
+          echo "1. 5本のフィルタをダウンロードして結合中..."
+          for id in "${FILTER_IDS[@]}"; do
+            url="https://filters.adtidy.org/ios/filters/${id}_optimized.txt"
+            echo "Fetching Filter ID: ${id} (${url})"
+            curl -sS -L "$url" >> combined_filter.txt
+            echo "" >> combined_filter.txt
+          done
+
+          echo "結合後の総行数: $(wc -l < combined_filter.txt) 行"
+
+          echo "2. AdGuard公式 SafariConverterLib CLI のビルド..."
+          git clone --depth 1 https://github.com/AdguardTeam/SafariConverterLib.git
+          cd SafariConverterLib
+          swift build -c release --product ConverterTool
+
+          echo "3. WebKit用JSONへ一括変換・最適化中..."
+          # ConverterToolのサブコマンド `convert` を実行
+          .build/release/ConverterTool convert \
+            --safari-version 16.4 \
+            --optimize true \
+            --input-path ../combined_filter.txt \
+            --output-path ../dist/rules_raw.json
+
+          cd ..
+
+          echo "4. WKContentRuleList用のJSON配列を抽出..."
+          if jq -e '.safariRulesJSON' dist/rules_raw.json > /dev/null 2>&1; then
+            jq -c '.safariRulesJSON | fromjson' dist/rules_raw.json > dist/rules.json
+            rm dist/rules_raw.json
+          elif jq -e '.json' dist/rules_raw.json > /dev/null 2>&1; then
+            jq -c '.json | fromjson' dist/rules_raw.json > dist/rules.json
+            rm dist/rules_raw.json
+          else
+            mv dist/rules_raw.json dist/rules.json
+          fi
+
+          # 変換後のルール数をログに出力（WebKit上限15万ルールの確認用）
+          RULE_COUNT=$(jq 'length' dist/rules.json)
+          echo "=========================================="
+          echo "変換完了！ 総ルール数: ${RULE_COUNT} / 150,000"
+          echo "=========================================="
+
+          # ライセンスと更新チェック用のタイムスタンプを生成
+          cp LICENSE dist/LICENSE.txt 2>/dev/null || true
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > dist/version.txt
+
+          ls -lh dist/
+
+      # 動作確認用：生成されたdistフォルダをGitHubの画面からDLできるように保存
+      - name: Upload Artifact for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: webkit-filter-dist
+          path: dist/
+          retention-days: 5
