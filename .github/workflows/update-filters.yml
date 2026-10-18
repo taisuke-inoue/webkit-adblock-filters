@@ -62,7 +62,10 @@ jobs:
           echo "結合後の総行数: $(wc -l < combined_filter.txt) 行"
 
           echo "2. AdGuard公式 SafariConverterLib CLI のビルド..."
-          git clone --depth 1 https://github.com/AdguardTeam/SafariConverterLib.git
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          git clone https://github.com/AdguardTeam/SafariConverterLib.git
+          git -C SafariConverterLib checkout 1cfdcaf042880a5e0027a8fc6f7ebf9ee667acc9
+          python3 scripts/prepare_converter.py SafariConverterLib
           git -C SafariConverterLib rev-parse HEAD > dist/source/converter-commit.txt
           cd SafariConverterLib
           swift build -c release --product ConverterTool
@@ -71,28 +74,13 @@ jobs:
           .build/release/ConverterTool convert \
             --safari-version 26 \
             --input-path ../combined_filter.txt \
-            --safari-rules-json-path ../dist/rules_raw.json
+            --safari-rules-json-path ../rules_raw.json
 
           cd ..
 
-          echo "4. JSONを1行にMinify（軽量化）して集計..."
-          jq -e '
-            type == "array" and length > 0 and length <= 150000 and
-            all(.[];
-              (.trigger | type == "object") and
-              (.action | type == "object") and
-              (.trigger["url-filter"] | type == "string") and
-              (.action.type | type == "string")
-            )
-          ' dist/rules_raw.json > /dev/null
-          jq -c '.' dist/rules_raw.json > dist/rules.json
-          rm dist/rules_raw.json
-
-          # 変換後のルール数をログに出力（WebKit上限15万ルールの確認用）
-          RULE_COUNT=$(jq 'length' dist/rules.json)
-          echo "=========================================="
-          echo "変換完了！ 総ルール数: ${RULE_COUNT} / 150,000"
-          echo "=========================================="
+          python3 scripts/split_rules.py rules_raw.json dist
+          rm rules_raw.json
+          cp scripts/split_rules.py scripts/prepare_converter.py dist/source/
 
           test -s LICENSE
           cp LICENSE dist/LICENSE.txt
@@ -100,7 +88,6 @@ jobs:
           cp distribution/NOTICE.txt dist/NOTICE.txt
           cp distribution/_headers dist/_headers
           cp distribution/index.html dist/index.html
-          shasum -a 256 dist/rules.json > dist/rules.sha256
           date -u +"%Y-%m-%dT%H:%M:%SZ" > dist/version.txt
 
           ls -lh dist/
