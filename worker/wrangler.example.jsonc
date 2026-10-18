@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "onebar-filter-scheduler",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {
+    // UTC 18:00 = 日本時間 翌日03:00
+    "crons": ["0 18 * * *"]
+  },
+  "observability": { "enabled": true },
+  "vars": {
+    "GITHUB_OWNER": "taisuke-inoue",
+    "GITHUB_REPO": "webkit-adblock-filters",
+    "GITHUB_WORKFLOW": "update-filters.yml",
+    "GITHUB_REF": "main"
+  }
+  // GITHUB_TOKENはSecretとして登録する。ここに書かない。
+}
