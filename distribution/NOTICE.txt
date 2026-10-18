@@ -18,3 +18,6 @@ To reproduce, use these saved inputs instead of downloading newer filters,
 check out the recorded converter revision and run the conversion/minification
 commands in the workflow. The workflow records the selected Safari target.
 These source files are available without charge alongside rules.json.
+
+The converter count limit is disabled by source/prepare_converter.py before building.
+source/split_rules.py preserves ordered exceptions while splitting into files of at most 148000 rules.
