@@ -1,0 +1,20 @@
+WebKit Adblock Filters
+
+Source filters: AdGuard filters 2, 11, 7, 3, 20.
+Source URLs: https://filters.adtidy.org/ios/filters/<ID>_optimized.txt
+Upstream: https://github.com/AdguardTeam/AdguardFilters
+Converter: https://github.com/AdguardTeam/SafariConverterLib
+
+These filters are combined and converted to WebKit content-blocking JSON,
+then minified by this project. The conversion date is in version.txt.
+Distributed under GNU GPL version 3; see LICENSE.txt for terms and warranty disclaimer.
+Original copyright and license notices are retained in the source files.
+
+Corresponding inputs: source/2_optimized.txt, source/11_optimized.txt,
+source/7_optimized.txt, source/3_optimized.txt, source/20_optimized.txt.
+Build instructions: source/update-filters.yml.
+Exact converter revision: source/converter-commit.txt.
+To reproduce, use these saved inputs instead of downloading newer filters,
+check out the recorded converter revision and run the conversion/minification
+commands in the workflow. The workflow records the selected Safari target.
+These source files are available without charge alongside rules.json.
