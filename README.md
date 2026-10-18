@@ -34,4 +34,13 @@ Workerからの初回起動成功を確認してから、GitHub側のscheduleを
 Workerの設定・テスト手順は [worker/README.md](worker/README.md) を参照してください。
 
 配信先: https://webkit-adblock-filters.pages.dev/
-フィルター: https://webkit-adblock-filters.pages.dev/rules.json
+フィルター: https://webkit-adblock-filters.pages.dev/manifest.json
+
+## 複数リスト配信
+
+`manifest.json` に全ファイルのパス・SHA-256・件数を列挙します。各ファイルは例外ルールを含め148,000件以内です。
+`sourceRuleCount` は変換後の元の件数、`totalRuleCount` は例外複製を含む配信件数です。
+コンバーターを固定リビジョンでビルドし、件数による切り捨てのみ無効化します。変更用スクリプトも公開します。
+全ての `ignore-previous-rules` を元の相対順序で各リストに複製し、その他のルールは各1回配信します。
+未対応のアクションや例外数の超過では公開を停止します。上限による破棄ゼロを検証しますが、変換非対応のABP構文まで対応するものではありません。
+アプリは全リストの検証・コンパイルに成功してから一括で切り替えます。
